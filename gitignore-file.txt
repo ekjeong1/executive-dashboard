@@ -1,0 +1,76 @@
+# 환경 설정 파일
+.env
+.env.local
+.env.production
+config.js
+config.local.js
+
+# 보안 관련
+tokens.json
+credentials.json
+*.key
+*.pem
+*.cert
+
+# IDE 설정
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# OS 시스템 파일
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*.swo
+*~
+
+# 로그 파일
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# 의존성
+node_modules/
+bower_components/
+
+# 빌드 결과물
+dist/
+build/
+out/
+.cache/
+
+# 테스트 커버리지
+coverage/
+*.lcov
+.nyc_output
+
+# 임시 파일
+tmp/
+temp/
+*.tmp
+*.bak
+*.backup
+
+# 개인 메모나 테스트 파일
+*.test.html
+test-*.js
+personal-notes.md
+TODO.md
+
+# Google Apps Script 로컬 개발
+.clasp.json
+.clasprc.json
+
+# 민감한 데이터
+data/
+private/
+secrets/
+
+# 백업 파일
+*.backup
+*.old
+backup/

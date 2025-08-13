@@ -1,0 +1,990 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>대표님 통합 대시보드</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            font-size: 28px;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .status-bar {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 15px;
+            background: #f0f0f0;
+            border-radius: 20px;
+            font-size: 14px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background: #4ade80;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 25px;
+        }
+
+        @media (max-width: 1024px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .card-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .badge {
+            padding: 5px 12px;
+            background: #667eea;
+            color: white;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        /* 긴급 요청 패널 */
+        .urgent-panel {
+            background: linear-gradient(135deg, #f59e0b 0%, #ea580c 100%);
+            color: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 25px;
+        }
+
+        .request-types {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .request-type-btn {
+            padding: 10px;
+            background: rgba(255,255,255,0.2);
+            border: 2px solid transparent;
+            border-radius: 10px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .request-type-btn:hover {
+            background: rgba(255,255,255,0.25);
+        }
+
+        .request-type-btn.active {
+            background: rgba(255,255,255,0.3);
+            border-color: white;
+        }
+
+        .request-type-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .message-input {
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            margin-bottom: 15px;
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-send {
+            background: white;
+            color: #ea580c;
+        }
+
+        .btn-send:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        /* 미팅 리스트 */
+        .meeting-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .meeting-item {
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            border-left: 4px solid #667eea;
+            transition: all 0.3s;
+        }
+
+        .meeting-item:hover {
+            transform: translateX(5px);
+            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+        }
+
+        .meeting-time {
+            font-size: 14px;
+            font-weight: 600;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .meeting-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .meeting-detail {
+            font-size: 13px;
+            color: #666;
+        }
+
+        /* 채팅 영역 */
+        .chat-container {
+            height: 300px;
+            overflow-y: auto;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            margin-bottom: 15px;
+        }
+
+        .chat-message {
+            margin-bottom: 15px;
+            padding: 10px;
+            background: white;
+            border-radius: 10px;
+            max-width: 80%;
+        }
+
+        .chat-message.sent {
+            background: #667eea;
+            color: white;
+            margin-left: auto;
+        }
+
+        .chat-message.received {
+            margin-right: auto;
+        }
+
+        .chat-time {
+            font-size: 11px;
+            opacity: 0.7;
+            margin-top: 5px;
+        }
+
+        .chat-input-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        .chat-input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            font-size: 14px;
+        }
+
+        /* 파일 업로드 */
+        .file-upload-area {
+            border: 2px dashed #ddd;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .file-upload-area:hover {
+            border-color: #667eea;
+            background: #f8f9fa;
+        }
+
+        .file-list {
+            margin-top: 15px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .file-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+
+        /* 요청 상태 */
+        .request-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .request-item {
+            padding: 12px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .request-status {
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status-open {
+            background: #fef3c7;
+            color: #d97706;
+        }
+
+        .status-doing {
+            background: #dbeafe;
+            color: #2563eb;
+        }
+
+        .status-done {
+            background: #d1fae5;
+            color: #059669;
+        }
+
+        /* 미팅 상태별 스타일 */
+        .meeting-item.completed {
+            opacity: 0.6;
+            background: #e8e8e8;
+        }
+
+        .meeting-item.ongoing {
+            background: #fff8e1;
+            border-left-color: #ff9800;
+            animation: pulse-border 2s infinite;
+        }
+
+        @keyframes pulse-border {
+            0%, 100% { border-left-width: 4px; }
+            50% { border-left-width: 6px; }
+        }
+
+        .meeting-item.upcoming {
+            background: #e8f5e9;
+            border-left-color: #4caf50;
+        }
+
+        /* 알림 */
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            display: none;
+            animation: slideIn 0.3s ease;
+            z-index: 1000;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        .toast.show {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* 로딩 */
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* 가이드 박스 */
+        .info-box {
+            background: rgba(255,255,255,0.2);
+            padding: 10px;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-size: 13px;
+        }
+
+        .info-box.reserve-guide {
+            display: none;
+            margin-top: 5px;
+            padding-top: 5px;
+            border-top: 1px solid rgba(255,255,255,0.3);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 헤더 -->
+        <div class="header">
+            <h1>📊 통합 대시보드</h1>
+            <div class="status-bar">
+                <div class="status-item">
+                    <div class="status-dot"></div>
+                    <span>실시간 동기화</span>
+                </div>
+                <div class="status-item">
+                    <span>📅 <span id="currentDate"></span></span>
+                </div>
+                <div class="status-item">
+                    <span>⏰ <span id="currentTime"></span></span>
+                </div>
+                <div class="status-item">
+                    <span>👤 <select id="userRole" onchange="switchUserRole()" style="padding: 2px 5px; border-radius: 4px;">
+                        <option value="secretary">비서 모드</option>
+                        <option value="ceo">대표님 모드</option>
+                    </select></span>
+                </div>
+                <div class="status-item">
+                    <span>📌 열린 요청: <strong id="openRequests">0</strong>건</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 긴급 요청 패널 -->
+        <div class="urgent-panel">
+            <h3 style="margin-bottom: 15px;" id="panelTitle">📤 긴급 전달</h3>
+            
+            <div class="request-types">
+                <button class="request-type-btn active" onclick="setRequestType('urgent')">
+                    🚨 긴급 요청
+                </button>
+                <button class="request-type-btn" id="signBtn" onclick="setRequestType('sign')">
+                    ✍️ 서명 요청
+                </button>
+                <button class="request-type-btn" onclick="setRequestType('reserve')">
+                    📅 예약/일정
+                </button>
+            </div>
+            
+            <div class="info-box">
+                💡 <strong>현재:</strong> <span id="currentUserDisplay">비서 모드</span>
+                <div class="info-box reserve-guide" id="reserveGuide">
+                    📅 <strong>예약/일정 사용법:</strong><br>
+                    • 대표님: 예약 요청 입력 (예: "내일 3시 A사 미팅 잡아주세요")<br>
+                    • 비서: 예약 완료 후 결과 입력 (예: "A사 미팅 15시 확정")
+                </div>
+            </div>
+            
+            <textarea class="message-input" id="urgentMessage" 
+                placeholder="긴급하게 전달할 내용을 입력하세요..."></textarea>
+            
+            <div class="action-buttons">
+                <button class="btn btn-send" onclick="sendRequest()">
+                    <span>📤</span>
+                    <span id="sendButtonText">슬랙 DM으로 전송</span>
+                </button>
+                <button class="btn btn-send" onclick="uploadFile()">
+                    <span>📎</span>
+                    <span>파일 첨부</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="main-grid">
+            <!-- 왼쪽: 미팅 & 채팅 -->
+            <div>
+                <!-- 오늘의 미팅 -->
+                <div class="card" style="margin-bottom: 25px;">
+                    <div class="card-header">
+                        <div class="card-title">📅 오늘의 미팅</div>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span class="badge" id="meetingCount">0건</span>
+                            <span style="font-size: 12px; color: #999;">💜 슬랙 #미팅-현황</span>
+                        </div>
+                    </div>
+                    <div class="meeting-list" id="meetingList">
+                        <div style="text-align: center; color: #999;">
+                            슬랙 채널에서 미팅 정보를 불러오는 중...
+                        </div>
+                    </div>
+                    <div style="margin-top: 10px; padding: 10px; background: #f0f0f0; border-radius: 8px; font-size: 12px; color: #666;">
+                        💡 미팅 정보는 슬랙 #미팅-현황 채널에서 자동으로 가져옵니다
+                    </div>
+                </div>
+
+                <!-- 슬랙 DM 채팅 -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">💬 슬랙 DM 대화</div>
+                        <span class="badge">실시간</span>
+                    </div>
+                    
+                    <div style="background: #f0f8ff; padding: 10px; border-radius: 8px; margin-bottom: 15px; font-size: 13px;">
+                        📌 <strong>대화 내역:</strong> 대시보드에서 보낸 메시지와 슬랙 DM 대화가 모두 표시됩니다
+                    </div>
+                    
+                    <div class="chat-container" id="chatContainer">
+                        <div style="text-align: center; color: #999;">
+                            대화 내역을 불러오는 중...
+                        </div>
+                    </div>
+                    <div class="chat-input-group">
+                        <input type="text" class="chat-input" id="chatInput" 
+                            placeholder="빠른 답변 입력..." 
+                            onkeypress="if(event.key==='Enter') sendChat()">
+                        <button class="btn btn-send" onclick="sendChat()" style="padding: 10px 20px;">
+                            전송
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 오른쪽: 파일 & 요청 -->
+            <div>
+                <!-- 파일 업로드 -->
+                <div class="card" style="margin-bottom: 25px;">
+                    <div class="card-header">
+                        <div class="card-title">📁 파일 공유</div>
+                    </div>
+                    <div class="file-upload-area" onclick="document.getElementById('fileInput').click()">
+                        <div>📎 클릭하여 파일 선택</div>
+                        <div style="font-size: 12px; color: #999; margin-top: 5px;">
+                            또는 파일을 여기로 드래그
+                        </div>
+                    </div>
+                    <input type="file" id="fileInput" style="display: none;" onchange="handleFileSelect(event)">
+                    <div class="file-list" id="fileList"></div>
+                </div>
+
+                <!-- 요청 상태 -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">📋 요청 현황</div>
+                    </div>
+                    <div class="request-list" id="requestList">
+                        <div style="text-align: center; color: #999;">
+                            요청 내역이 없습니다
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 토스트 알림 -->
+    <div class="toast" id="toast">
+        <span id="toastIcon">✅</span>
+        <span id="toastMessage">메시지</span>
+    </div>
+
+    <script>
+        // 설정
+        const CONFIG = {
+            // GitHub에서 사용시 아래 URL을 실제 Google Apps Script URL로 변경하세요
+            GAS_URL: 'https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec',
+            TOKEN: 'my-secret-token-2024', // 보안을 위해 환경변수 사용 권장
+            AUTO_REFRESH: 30000, // 30초마다 자동 새로고침
+            MEETING_REFRESH: 60000 // 1분마다 미팅 정보 새로고침
+        };
+
+        let currentRequestType = 'urgent';
+        let selectedFile = null;
+        let currentUser = localStorage.getItem('userRole') || 'secretary';
+
+        // 초기화
+        document.addEventListener('DOMContentLoaded', function() {
+            // 사용자 모드 복원
+            document.getElementById('userRole').value = currentUser;
+            updateUserInterface();
+            
+            updateDateTime();
+            loadMeetings();
+            loadChatHistory();
+            countOpenRequests();
+            loadRecentRequests();
+            
+            // 자동 새로고침
+            setInterval(() => {
+                loadChatHistory();
+                countOpenRequests();
+                loadRecentRequests();
+            }, CONFIG.AUTO_REFRESH);
+            
+            // 미팅 정보 자동 새로고침
+            setInterval(() => {
+                syncMeetingsFromSlack();
+                loadMeetings();
+            }, CONFIG.MEETING_REFRESH);
+            
+            // 시간 업데이트
+            setInterval(updateDateTime, 1000);
+        });
+
+        // 사용자 역할 전환
+        function switchUserRole() {
+            currentUser = document.getElementById('userRole').value;
+            localStorage.setItem('userRole', currentUser);
+            updateUserInterface();
+            showToast('👤', `${currentUser === 'ceo' ? '대표님' : '비서'} 모드로 전환되었습니다`);
+        }
+
+        // UI 업데이트
+        function updateUserInterface() {
+            const isCEO = currentUser === 'ceo';
+            
+            document.getElementById('panelTitle').textContent = 
+                isCEO ? '📤 비서에게 전달' : '📤 대표님께 전달';
+            
+            document.getElementById('currentUserDisplay').textContent = 
+                isCEO ? '대표님 모드' : '비서 모드';
+            
+            document.getElementById('sendButtonText').textContent = 
+                isCEO ? '비서에게 전송' : '대표님께 전송';
+            
+            document.getElementById('urgentMessage').placeholder = 
+                isCEO ? '비서에게 전달할 내용을 입력하세요...' 
+                     : '대표님께 전달할 내용을 입력하세요...';
+            
+            // 서명 요청 버튼 (대표님은 사용 안함)
+            const signBtn = document.getElementById('signBtn');
+            if (isCEO) {
+                signBtn.disabled = true;
+            } else {
+                signBtn.disabled = false;
+            }
+        }
+
+        // 요청 타입 설정
+        function setRequestType(type) {
+            if (currentUser === 'ceo' && type === 'sign') {
+                showToast('⚠️', '서명 요청은 비서만 사용 가능합니다');
+                return;
+            }
+            
+            currentRequestType = type;
+            document.querySelectorAll('.request-type-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            // 예약/일정 가이드 표시
+            document.getElementById('reserveGuide').style.display = 
+                type === 'reserve' ? 'block' : 'none';
+        }
+
+        // 날짜/시간 업데이트
+        function updateDateTime() {
+            const now = new Date();
+            document.getElementById('currentDate').textContent = 
+                now.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' });
+            document.getElementById('currentTime').textContent = 
+                now.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+        }
+
+        // API 호출 헬퍼
+        async function callGAS(method, path, data = {}) {
+            const url = `${CONFIG.GAS_URL}?path=${path}`;
+            const options = {
+                method: method,
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            };
+            
+            if (method === 'POST') {
+                options.body = JSON.stringify({ ...data, token: CONFIG.TOKEN });
+            } else {
+                const urlWithToken = `${url}&token=${CONFIG.TOKEN}`;
+                return fetch(urlWithToken).then(r => r.json());
+            }
+            
+            return fetch(url, options).then(r => r.json());
+        }
+
+        // 슬랙 채널에서 미팅 정보 동기화
+        async function syncMeetingsFromSlack() {
+            try {
+                const result = await callGAS('POST', 'meetings/sync-from-slack', {});
+                if (result.added > 0) {
+                    showToast('📅', `${result.added}개의 새 미팅이 추가되었습니다`);
+                }
+            } catch (err) {
+                console.error('슬랙 미팅 동기화 실패:', err);
+            }
+        }
+
+        // 미팅 목록 로드
+        async function loadMeetings() {
+            try {
+                const data = await callGAS('GET', 'meetings/list');
+                const list = document.getElementById('meetingList');
+                const items = data.items || [];
+                
+                document.getElementById('meetingCount').textContent = items.length + '건';
+                
+                if (items.length === 0) {
+                    list.innerHTML = '<div style="text-align: center; color: #999;">오늘 미팅이 없습니다</div>';
+                    return;
+                }
+                
+                // 시간순 정렬
+                items.sort((a, b) => (a.start_time || '').localeCompare(b.start_time || ''));
+                
+                // 현재 시간 확인
+                const now = new Date();
+                const currentTime = now.getHours() * 60 + now.getMinutes();
+                
+                list.innerHTML = items.map(m => {
+                    let status = '';
+                    let statusClass = '';
+                    if (m.start_time) {
+                        const [hour, min] = m.start_time.split(':').map(Number);
+                        const meetingTime = hour * 60 + min;
+                        
+                        if (meetingTime < currentTime - 60) {
+                            status = '✅ 완료';
+                            statusClass = 'completed';
+                        } else if (Math.abs(meetingTime - currentTime) < 30) {
+                            status = '🔄 진행중';
+                            statusClass = 'ongoing';
+                        } else if (meetingTime > currentTime) {
+                            status = '⏰ 예정';
+                            statusClass = 'upcoming';
+                        }
+                    }
+                    
+                    return `
+                        <div class="meeting-item ${statusClass}">
+                            <div class="meeting-time">${m.start_time || '시간 미정'} ${status}</div>
+                            <div class="meeting-title">${m.title}</div>
+                            <div class="meeting-detail">
+                                📍 ${m.location || '장소 미정'} | 
+                                👥 ${m.attendees || '참석자 미정'}
+                                ${m.link ? `| <a href="${m.link}" target="_blank">🔗 링크</a>` : ''}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            } catch (err) {
+                console.error('미팅 로드 실패:', err);
+            }
+        }
+
+        // 채팅 내역 로드
+        async function loadChatHistory() {
+            try {
+                const data = await callGAS('GET', 'chat/history');
+                const container = document.getElementById('chatContainer');
+                const items = data.items || [];
+                
+                if (items.length === 0) {
+                    container.innerHTML = '<div style="text-align: center; color: #999;">대화 내역이 없습니다</div>';
+                    return;
+                }
+                
+                container.innerHTML = items.map(msg => {
+                    const isSentByDashboard = msg.user === 'bot' || !msg.user;
+                    let messageClass = isSentByDashboard ? 'sent' : 'received';
+                    let messageContent = msg.text;
+                    
+                    // 요청 타입 표시
+                    if (msg.text.includes('[긴급]')) {
+                        messageContent = `🚨 ${msg.text}`;
+                    } else if (msg.text.includes('[서명요청]')) {
+                        messageContent = `✍️ ${msg.text}`;
+                    } else if (msg.text.includes('[예약]') || msg.text.includes('일정') || msg.text.includes('미팅')) {
+                        messageContent = `📅 ${msg.text}`;
+                    }
+                    
+                    return `
+                        <div class="chat-message ${messageClass}">
+                            <div>${messageContent}</div>
+                            <div class="chat-time">${new Date(parseFloat(msg.ts) * 1000).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}</div>
+                        </div>
+                    `;
+                }).join('');
+                
+                container.scrollTop = container.scrollHeight;
+            } catch (err) {
+                console.error('채팅 로드 실패:', err);
+            }
+        }
+
+        // 열린 요청 수 확인
+        async function countOpenRequests() {
+            try {
+                const data = await callGAS('GET', 'requests/count');
+                document.getElementById('openRequests').textContent = data.open || 0;
+            } catch (err) {
+                console.error('요청 수 확인 실패:', err);
+            }
+        }
+
+        // 최근 요청 내역 로드
+        async function loadRecentRequests() {
+            try {
+                const data = await callGAS('GET', 'requests/list');
+                const list = document.getElementById('requestList');
+                const items = data.items || [];
+                
+                if (items.length === 0) {
+                    list.innerHTML = '<div style="text-align: center; color: #999;">요청 내역이 없습니다</div>';
+                    return;
+                }
+                
+                list.innerHTML = items.slice(0, 10).map(req => {
+                    let typeIcon = '📌';
+                    if (req.type === 'urgent') typeIcon = '🚨';
+                    else if (req.type === 'sign') typeIcon = '✍️';
+                    else if (req.type === 'reserve') typeIcon = '📅';
+                    
+                    let statusClass = 'status-open';
+                    if (req.status === 'doing') statusClass = 'status-doing';
+                    else if (req.status === 'done') statusClass = 'status-done';
+                    
+                    return `
+                        <div class="request-item">
+                            <div>
+                                <div style="font-weight: 600;">
+                                    ${typeIcon} ${req.message.substring(0, 30)}${req.message.length > 30 ? '...' : ''}
+                                </div>
+                                <div style="font-size: 12px; color: #999; margin-top: 5px;">
+                                    ${req.from === 'ceo' ? '👤 대표님' : '👩‍💼 비서'} • 
+                                    ${new Date(req.timestamp).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
+                                </div>
+                            </div>
+                            <span class="request-status ${statusClass}">
+                                ${req.status === 'open' ? '대기' : req.status === 'doing' ? '처리중' : '완료'}
+                            </span>
+                        </div>
+                    `;
+                }).join('');
+            } catch (err) {
+                console.error('요청 로드 실패:', err);
+            }
+        }
+
+        // 요청 전송
+        async function sendRequest() {
+            const message = document.getElementById('urgentMessage').value.trim();
+            if (!message) {
+                showToast('⚠️', '메시지를 입력해주세요');
+                return;
+            }
+            
+            try {
+                showToast('⏳', '전송 중...');
+                
+                await callGAS('POST', 'requests/create', {
+                    type: currentRequestType,
+                    from: currentUser,
+                    message: message,
+                    priority: currentRequestType === 'urgent' ? 'high' : 'normal'
+                });
+                
+                document.getElementById('urgentMessage').value = '';
+                
+                const recipient = currentUser === 'ceo' ? '비서' : '대표님';
+                showToast('✅', `${recipient}에게 전송 완료!`);
+                
+                countOpenRequests();
+                loadRecentRequests();
+                setTimeout(loadChatHistory, 1000);
+            } catch (err) {
+                showToast('❌', '전송 실패: ' + err.message);
+            }
+        }
+
+        // 채팅 전송
+        async function sendChat() {
+            const input = document.getElementById('chatInput');
+            const text = input.value.trim();
+            if (!text) return;
+            
+            try {
+                input.disabled = true;
+                await callGAS('POST', 'chat/send', { text });
+                input.value = '';
+                
+                setTimeout(loadChatHistory, 1000);
+            } catch (err) {
+                showToast('❌', '전송 실패');
+            } finally {
+                input.disabled = false;
+                input.focus();
+            }
+        }
+
+        // 파일 선택
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            selectedFile = file;
+            const list = document.getElementById('fileList');
+            list.innerHTML = `
+                <div class="file-item">
+                    <span>📄</span>
+                    <span>${file.name}</span>
+                    <button onclick="uploadSelectedFile()" class="btn" style="padding: 5px 10px; font-size: 12px;">
+                        업로드
+                    </button>
+                </div>
+            `;
+        }
+
+        // 파일 업로드
+        async function uploadSelectedFile() {
+            if (!selectedFile) return;
+            
+            try {
+                showToast('⏳', '파일 업로드 중...');
+                
+                const reader = new FileReader();
+                reader.onload = async function(e) {
+                    const base64 = e.target.result.split(',')[1];
+                    
+                    const result = await callGAS('POST', 'files/upload', {
+                        filename: selectedFile.name,
+                        mimeType: selectedFile.type,
+                        base64: base64,
+                        uploaded_by: currentUser
+                    });
+                    
+                    showToast('✅', '파일 업로드 완료!');
+                    
+                    const message = document.getElementById('urgentMessage');
+                    message.value += `\n📎 파일: ${result.url}`;
+                    
+                    document.getElementById('fileList').innerHTML = '';
+                    selectedFile = null;
+                };
+                reader.readAsDataURL(selectedFile);
+            } catch (err) {
+                showToast('❌', '업로드 실패');
+            }
+        }
+
+        // 파일 업로드 버튼 클릭
+        function uploadFile() {
+            document.getElementById('fileInput').click();
+        }
+
+        // 토스트 알림
+        function showToast(icon, message) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toastIcon').textContent = icon;
+            document.getElementById('toastMessage').textContent = message;
+            toast.classList.add('show');
+            
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
