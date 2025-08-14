@@ -273,6 +273,19 @@
       });
     }
 
+    function toHHMM(t){
+      if (!t) return '';
+      if (typeof t === 'string'){
+        const m = t.match(/(\d{1,2}):(\d{2})/);
+        return m ? m[1].padStart(2,'0') + ':' + m[2] : t;
+      }
+      try {
+        const d = new Date(t);
+        if (!isNaN(d)) return d.toTimeString().slice(0,5);
+      } catch(_){}
+      return String(t);
+    }
+    
     // 미팅: 08:00/12:00 근처에서만 refresh
     async function refreshMeetingsIfScheduled(onLoad){
       try{
@@ -289,22 +302,49 @@
 
     async function loadMeetings(){
       try{
-        const data=await callGAS('GET','meetings/list');
-        const list=document.getElementById('meetingList');
-        const items=data.items||[];document.getElementById('meetingCount').textContent=items.length+'건';
-        if(items.length===0){list.innerHTML='<div style="text-align:center;color:#999;">오늘 미팅이 없습니다</div>';return}
-        items.sort((a,b)=> (a.start_time||'').localeCompare(b.start_time||''));
-        const now=new Date();const curMin=now.getHours()*60+now.getMinutes();
-        list.innerHTML=items.map(m=>{
-          let status='', cls='';
-          if(m.start_time){const [h,mi]=(m.start_time||'0:0').split(':').map(Number);const mt=h*60+mi;
-            if(mt<curMin-60){status='✅ 완료';cls='completed'}
-            else if(Math.abs(mt-curMin)<30){status='🔄 진행중';cls='ongoing'}
-            else if(mt>curMin){status='⏰ 예정';cls='upcoming'}
+        const data = await callGAS('GET','meetings/list');
+        const list = document.getElementById('meetingList');
+        const items = data.items || [];
+
+        document.getElementById('meetingCount').textContent = items.length + '건';
+        if (items.length === 0){
+          list.innerHTML = '<div style="text-align:center;color:#999;">오늘 미팅이 없습니다</div>';
+          return;
+        }
+
+        // ⬅️ 정렬도 HH:mm 기준으로
+        items.sort((a,b) => toHHMM(a.start_time).localeCompare(toHHMM(b.start_time)));
+
+        const now = new Date();
+        const curMin = now.getHours()*60 + now.getMinutes();
+
+        list.innerHTML = items.map(m => {
+          // ⬅️ 여기서 변환해서 재사용
+          const hhmm = toHHMM(m.start_time);
+
+          let status = '', cls = '';
+          if (hhmm) {
+            const [h, mi] = hhmm.split(':').map(Number);
+            const mt = h*60 + mi;
+            if (mt < curMin - 60) { status = '✅ 완료'; cls = 'completed'; }
+            else if (Math.abs(mt - curMin) < 30) { status = '🔄 진행중'; cls = 'ongoing'; }
+            else if (mt > curMin) { status = '⏰ 예정'; cls = 'upcoming'; }
           }
-          return `<div class="meeting-item ${cls}"><div class="meeting-time">${m.start_time||'시간 미정'} ${status}</div><div class="meeting-title">${m.title||''}</div><div class="meeting-detail">📍 ${m.location||'장소 미정'} ${m.link?`| <a href="${m.link}" target="_blank">🔗 링크</a>`:''}</div></div>`
+
+          return `
+            <div class="meeting-item ${cls}">
+              <div class="meeting-time">${hhmm || '시간 미정'} ${status}</div>
+              <div class="meeting-title">${m.title || ''}</div>
+              <div class="meeting-detail">
+                📍 ${m.location || '장소 미정'}
+                ${m.link ? `| <a href="${m.link}" target="_blank">🔗 링크</a>` : ''}
+              </div>
+            </div>
+          `;
         }).join('');
-      }catch(e){console.error('미팅 로드 실패:',e)}
+      }catch(e){
+        console.error('미팅 로드 실패:', e);
+      }
     }
 
     async function loadChatHistory(){
