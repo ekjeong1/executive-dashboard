@@ -587,7 +587,7 @@
     <script>
         // 설정
         const CONFIG = {
-            GAS_URL: 'https://script.google.com/a/macros/cafe24corp.com/s/AKfycbwXXOi-tyqVb7uQLyeFfrO9405Xpxy5_QyOgA5IrhiNKS1clA7nfGuJoume3DCt4vW7/exec', // Google Apps Script URL
+            GAS_URL: 'https://script.google.com/a/macros/cafe24corp.com/s/AKfycbw4MRCXYGOQ50buFIfNBr-ndbwkdtMIfpYCrJ5pqlsw0gdmRmD-oHuKTLejU514LQ/exec', // Google Apps Script URL
             TOKEN: '7c1e4a9fdb2e4930b58c6e91d7a4b235', // GAS의 TOKEN과 동일하게
             AUTO_REFRESH: 30000, // 30초마다 자동 새로고침
             MEETING_REFRESH: 60000 // 1분마다 미팅 정보 새로고침 (슬랙 채널에서)
@@ -708,23 +708,64 @@
 
         // API 호출 헬퍼
         async function callGAS(method, path, data = {}) {
-            const url = `${CONFIG.GAS_URL}?path=${path}`;
-            const options = {
-                method: method,
-                headers: {
-                    'Content-Type': 'application/json',
+            try {
+                const url = `${CONFIG.GAS_URL}?path=${path}&token=${CONFIG.TOKEN}`;
+        
+                if (method === 'GET') {
+                    // no-cors 모드 사용
+                    const response = await fetch(url, {
+                        method: 'GET',
+                        mode: 'no-cors'  // CORS 우회
+                    });
+            
+                    // no-cors는 응답을 읽을 수 없으므로 JSONP 폴백
+                    return await callGAS_JSONP(method, path, data);
+            
+                } else {
+                    // POST도 GET으로 변환
+                    const postUrl = url + '&method=POST&body=' + encodeURIComponent(JSON.stringify(data));
+                    return await callGAS_JSONP('GET', path, {method: 'POST', ...data});
                 }
-            };
-            
-            if (method === 'POST') {
-                options.body = JSON.stringify({ ...data, token: CONFIG.TOKEN });
-            } else {
-                // GET 요청시 토큰을 쿼리 파라미터로
-                const urlWithToken = `${url}&token=${CONFIG.TOKEN}`;
-                return fetch(urlWithToken).then(r => r.json());
+            } catch (err) {
+                console.error('API 호출 실패:', err);
+                // JSONP로 재시도
+                return await callGAS_JSONP(method, path, data);
             }
-            
-            return fetch(url, options).then(r => r.json());
+        }
+
+        // JSONP 헬퍼 함수 추가
+        function callGAS_JSONP(method, path, data = {}) {
+            return new Promise((resolve, reject) => {
+                const callbackName = 'callback_' + Date.now();
+                const timeout = setTimeout(() => {
+                    delete window[callbackName];
+                    reject(new Error('Request timeout'));
+                }, 10000);
+        
+                window[callbackName] = function(response) {
+                    clearTimeout(timeout);
+                    delete window[callbackName];
+                    document.body.removeChild(script);
+                    resolve(response);
+                };
+        
+                const script = document.createElement('script');
+                let url = CONFIG.GAS_URL + '?path=' + path + '&token=' + CONFIG.TOKEN;
+        
+                if (method === 'POST') {
+                    url += '&method=POST&body=' + encodeURIComponent(JSON.stringify(data));
+                }
+        
+                url += '&callback=' + callbackName;
+                script.src = url;
+                script.onerror = () => {
+                    clearTimeout(timeout);
+                    delete window[callbackName];
+                    reject(new Error('Script load error'));
+                };
+        
+                document.body.appendChild(script);
+            });
         }
 
         // 슬랙 채널에서 미팅 정보 동기화
