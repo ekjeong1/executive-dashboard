@@ -219,15 +219,45 @@
     }
 
     // === Apps Script 호출: JSONP만 사용해 CORB 제거 ===
-    function callGAS(method,path,data={}){
-      return new Promise((resolve,reject)=>{
-        const cb='cb_'+Date.now()+Math.floor(Math.random()*1000);
-        const timeout=setTimeout(()=>{delete window[cb];document.body.removeChild(script);reject(new Error('Request timeout'))},10000);
-        window[cb]=res=>{clearTimeout(timeout);delete window[cb];document.body.removeChild(script);resolve(res)};
-        let url=`${CONFIG.GAS_URL}?path=${encodeURIComponent(path)}&token=${encodeURIComponent(CONFIG.TOKEN)}&callback=${cb}`;
-        if(method==='POST'){url+=`&method=POST&body=${encodeURIComponent(JSON.stringify(data))}`}
-        const script=document.createElement('script');script.src=url;script.onerror=()=>{clearTimeout(timeout);delete window[cb];reject(new Error('Script load error'))};document.body.appendChild(script);
-      })
+    function callGAS(method, path, data = {}) {
+      return new Promise((resolve, reject) => {
+        const cb = 'cb_' + Date.now() + Math.floor(Math.random() * 1000);
+        let settled = false;
+        const timeout = setTimeout(() => {
+          // ⛔ 타임아웃이 나도 콜백을 지우지 않습니다 (뒤늦게 로드돼도 에러 방지)
+          if (!settled) reject(new Error('Request timeout'));
+        }, 30000); // 30초
+
+        window[cb] = (res) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timeout);
+          try { document.body.removeChild(script); } catch(_) {}
+          resolve(res);
+          // 성공 시 정리
+          delete window[cb];
+        };
+
+        let url = `${CONFIG.GAS_URL}?path=${encodeURIComponent(path)}&token=${encodeURIComponent(CONFIG.TOKEN)}&callback=${cb}`;
+        if (method === 'POST') {
+          url += `&method=POST&body=${encodeURIComponent(JSON.stringify(data))}`;
+        }
+
+        const script = document.createElement('script');
+        script.src = url;
+        script.onerror = () => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timeout);
+          try { document.body.removeChild(script); } catch(_) {}
+          // 에러여도 콜백은 지우지 않아 뒤늦은 호출을 허용
+          reject(new Error('Script load error'));
+        };
+        script.onload = () => {
+          // JSONP는 로드 직후가 아니라 약간 뒤에 cb가 호출될 수 있음
+        };
+        document.body.appendChild(script);
+      });
     }
 
     // 미팅: 08:00/12:00 근처에서만 refresh
