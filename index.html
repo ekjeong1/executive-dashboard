@@ -198,7 +198,7 @@
       const isCEO=currentUser==='ceo';
       document.getElementById('panelTitle').textContent=isCEO?'📤 비서에게 전달':'📤 대표님께 전달';
       document.getElementById('currentUserDisplay').textContent=isCEO?'대표님 모드':'비서 모드';
-      document.getElementById('sendButtonText').textContent=isCEO?'비서에게 전송 (슬랙 DM)':'대표님께 전송 (슬랙 DM)';
+      document.getElementById('sendButtonText').textContent=isCEO?'비서에게 전송 (슬랙 대시보드봇)':'대표님께 전송 (슬랙 대시보드봇)';
       document.getElementById('urgentMessage').placeholder=isCEO?'비서에게 전달할 내용을 입력하세요...':'대표님께 전달할 내용을 입력하세요...';
       const signBtn=document.getElementById('signBtn');
       if(isCEO){signBtn.style.opacity='0.5';signBtn.style.cursor='not-allowed';signBtn.disabled=true}else{signBtn.style.opacity='1';signBtn.style.cursor='pointer';signBtn.disabled=false}
