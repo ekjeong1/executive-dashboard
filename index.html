@@ -122,21 +122,27 @@
         <!-- 슬랙 DM 대화 -->
         <div class="card">
           <div class="card-header">
-            <div class="card-title">💬 슬랙 DM 대화</div>
+            <div class="card-title">💬 대시보드 채팅</div>
             <span class="badge">실시간</span>
           </div>
-          <div style="background:#f0f8ff;padding:10px;border-radius:8px;margin-bottom:15px;font-size:13px">
-            📌 <strong>대화 내역:</strong> 대시보드에서 보낸 메시지와 슬랙 DM 대화가 모두 표시됩니다
+
+          <div style="background: #f0f8ff; padding: 10px; border-radius: 8px; margin-bottom: 15px; font-size: 13px;">
+            📌 <strong>대화 내역:</strong> 대시보드에서 이루어진 대화만 표시됩니다 (보관: 최근 7일)
           </div>
+
           <div class="chat-container" id="chatContainer">
-            <div style="text-align:center;color:#999">대화 내역을 불러오는 중...</div>
+            <div style="text-align: center; color: #999;">
+              대화 내역을 불러오는 중...
+            </div>
           </div>
           <div class="chat-input-group">
-            <input type="text" class="chat-input" id="chatInput" placeholder="빠른 답변 입력..." onkeypress="if(event.key==='Enter') sendChat()" />
-            <button class="btn btn-send" onclick="sendChat()" style="padding:10px 20px">전송</button>
+            <input type="text" class="chat-input" id="chatInput"
+              placeholder="메시지 입력…" onkeypress="if(event.key==='Enter') sendChat()">
+            <button class="btn btn-send" onclick="sendChat()" style="padding: 10px 20px;">
+              전송
+            </button>
           </div>
         </div>
-      </div>
 
       <div>
         <!-- 업무 지시 (요청 현황 대체) -->
@@ -184,7 +190,14 @@
       countOpenRequests();
       loadRecentRequests();
       // 채팅/요청 주기 새로고침
-      setInterval(()=>{loadChatHistory();countOpenRequests();loadRecentRequests();},CONFIG.AUTO_REFRESH);
+      setInterval(() => {
+        loadChatHistory();
+        countOpenRequests();
+        loadRecentRequests();
+        // ⬇️ 추가
+        callGAS('GET','requests/refresh').catch(()=>{});
+      }, CONFIG.AUTO_REFRESH);
+
       // 스케줄 체크(5분마다 08:00/12:00 근처에서만 실행)
       setInterval(()=>refreshMeetingsIfScheduled(false),5*60*1000);
       setInterval(updateDateTime,1000);
@@ -315,19 +328,43 @@
 
     async function loadRecentRequests(){
       try{
-        const d=await callGAS('GET','requests/list');
-        const list=document.getElementById('requestList');
-        const items=d.items||[];if(items.length===0){list.innerHTML='<div style="text-align:center;color:#999;">내역이 없습니다</div>';return}
-        list.innerHTML=items.slice(0,12).map(req=>{
-          let icon='📌'; if(req.type==='urgent') icon='🚨'; else if(req.type==='sign') icon='✍️'; else if(req.type==='reserve') icon='📅'; else if(req.type==='task') icon='🧭';
-          let sc='status-open'; if(req.status==='doing') sc='status-doing'; else if(req.status==='done') sc='status-done';
-          const time=new Date(req.timestamp).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'});
-          const from=req.from==='ceo'?'👤 대표님':'👩‍💼 비서';
-          const title=(req.message||'').substring(0,30)+(req.message&&req.message.length>30?'...':'');
-          return `<div class="request-item"><div><div style="font-weight:600;">${icon} ${title}</div><div style="font-size:12px;color:#999;margin-top:5px;">${from} • ${time}</div></div><span class="request-status ${sc}">${req.status==='open'?'대기':req.status==='doing'?'처리중':'완료'}</span></div>`
+        const d = await callGAS('GET','requests/list');
+        const list = document.getElementById('requestList');
+        const items = d.items || [];
+        if(items.length === 0){
+          list.innerHTML = '<div style="text-align:center;color:#999;">내역이 없습니다</div>';
+          return;
+        }
+        list.innerHTML = items.slice(0,12).map(req=>{
+          let icon='📌';
+          if(req.type==='urgent') icon='🚨';
+          else if(req.type==='sign') icon='✍️';
+          else if(req.type==='reserve') icon='📅';
+          else if(req.type==='task') icon='🧭';
+
+          // 상태 -> 클래스/라벨
+          let statusClass = 'status-open', statusLabel = '대기';
+          if (req.status === 'doing') { statusClass = 'status-doing'; statusLabel = '확인'; }
+          else if (req.status === 'done') { statusClass = 'status-done'; statusLabel = '완료'; }
+
+          const time = new Date(req.timestamp).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'});
+          const from = req.from==='ceo' ? '👤 대표님' : '👩‍💼 비서';
+          const title = (req.message||'').substring(0,30) + ((req.message&&req.message.length>30)?'...':'');
+          return `
+            <div class="request-item">
+              <div>
+                <div style="font-weight:600;">${icon} ${title}</div>
+                <div style="font-size:12px;color:#999;margin-top:5px;">${from} • ${time}</div>
+              </div>
+              <span class="request-status ${statusClass}">${statusLabel}</span>
+            </div>
+          `;
         }).join('');
-      }catch(e){console.error('요청 로드 실패:',e)}
+      }catch(e){
+        console.error('요청 로드 실패:', e);
+      }
     }
+
 
     async function sendRequest(){
       const message=document.getElementById('urgentMessage').value.trim(); if(!message){showToast('⚠️','메시지를 입력해주세요');return}
