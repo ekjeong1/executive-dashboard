@@ -309,19 +309,107 @@
 
     async function loadChatHistory(){
       try{
-        const data=await callGAS('GET','chat/history');
-        const c=document.getElementById('chatContainer');
-        const items=data.items||[];if(items.length===0){c.innerHTML='<div style="text-align:center;color:#999;">대화 내역이 없습니다</div>';return}
-        c.innerHTML=items.map(msg=>{
-          const sent=msg.user==='bot'||!msg.user;let klass=sent?'sent':'received';let txt=msg.text;
-          if(txt.includes('[긴급]')) txt=`🚨 ${txt}`; else if(txt.includes('[서명요청]')) txt=`✍️ ${txt}`; else if(/(예약|일정|미팅)/.test(txt)) txt=`📅 ${txt}`;
-          const ts=new Date(parseFloat(msg.ts)*1000).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'});
-          return `<div class="chat-message ${klass}"><div>${txt}</div><div class="chat-time">${ts}</div></div>`
+        const data = await callGAS('GET', 'chat/local/history');
+        const container = document.getElementById('chatContainer');
+        const items = data.items || [];
+
+        if (items.length === 0){
+          container.innerHTML = '<div style="text-align: center; color: #999;">대화 내역이 없습니다</div>';
+          return;
+        }
+
+        container.innerHTML = items.map(msg => {
+          const mine = (msg.from === currentUser);          // 'ceo' | 'secretary'
+          const klass = mine ? 'sent' : 'received';
+          const ts = new Date(msg.timestamp)
+            .toLocaleTimeString('ko-KR', { hour:'2-digit', minute:'2-digit' });
+          const text = msg.text || '';
+          return `
+            <div class="chat-message ${klass}">
+              <div>${text}</div>
+              <div class="chat-time">${ts}</div>
+            </div>
+          `;
         }).join('');
-        c.scrollTop=c.scrollHeight;
-      }catch(e){console.error('채팅 로드 실패:',e)}
+
+        container.scrollTop = container.scrollHeight;
+      }catch(err){
+        console.error('대시보드 채팅 로드 실패:', err);
+      }
     }
 
+    
+    async function sendChat(){
+      const input = document.getElementById('chatInput');
+      const text = input.value.trim();
+      if (!text) return;
+
+      try{
+        input.disabled = true;
+        await callGAS('POST', 'chat/local/send', { from: currentUser, text });
+        input.value = '';
+        setTimeout(loadChatHistory, 300);
+      }catch(err){
+        showToast('❌', '전송 실패');
+      }finally{
+        input.disabled = false;
+        input.focus();
+      }
+    }
+    
+    function ensureSheet_(name, headers){
+      const ss = SpreadsheetApp.openById(CONF.SHEET_ID);
+      let sh = ss.getSheetByName(name);
+      if (!sh){
+        sh = ss.insertSheet(name);
+        if (headers && headers.length){
+          sh.getRange(1,1,1,headers.length).setValues([headers]);
+        }
+      }
+      return sh;
+    }
+
+    function chatLocalSend_(body){
+      const sh = ensureSheet_('chat', ['timestamp','from','text']);
+      const ts = new Date();
+      const from = (body.from||'').toLowerCase(); // 'ceo' | 'secretary'
+      const text = (body.text||'').trim();
+      if (!text) return _bad('텍스트 없음');
+
+      // 저장
+      sh.appendRow([ts, from, text]);
+
+      // 보관기간 7일 초과분 삭제
+      const cutoff = new Date(Date.now() - 7*24*60*60*1000);
+      const lastRow = sh.getLastRow();
+      if (lastRow > 1){
+        const vals = sh.getRange(2,1,lastRow-1,3).getValues();
+        const toDelete = [];
+        for (let i=0;i<vals.length;i++){
+          const v = vals[i][0];
+          if (v && v < cutoff) toDelete.push(2+i);
+        }
+        for (let i=toDelete.length-1;i>=0;i--) sh.deleteRow(toDelete[i]);
+      }
+
+      return _okJSON({ok:true});
+    }
+
+    function chatLocalHistory_(){
+      const sh = ensureSheet_('chat', ['timestamp','from','text']);
+      const lastRow = sh.getLastRow();
+      if (lastRow < 2) return _okJSON({items:[]});
+
+      const cutoff = new Date(Date.now() - 7*24*60*60*1000);
+      const vals = sh.getRange(2,1,lastRow-1,3).getValues();
+      const items = vals
+        .filter(r => r[0] && r[0] >= cutoff)
+        .map(r => ({ timestamp: r[0], from: String(r[1]||''), text: String(r[2]||'') }));
+
+      return _okJSON({items});
+    }
+    
+B) 라우팅 등록
     async function countOpenRequests(){
       try{const d=await callGAS('GET','requests/count');document.getElementById('openRequests').textContent=d.open||0}catch(e){console.error('요청 수 확인 실패:',e)}
     }
