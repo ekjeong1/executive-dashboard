@@ -310,37 +310,78 @@
         </div>`;
     }
     
+   
+    const LARGE_THRESHOLD = 100 * 1024; // 100KB 이상은 POST(no-cors) 경로
+
     async function uploadSelectedFile(){
       if(!selectedFile) return;
+
       try{
         showToast('⏳','파일 업로드 중...');
         const reader = new FileReader();
         reader.onload = async (e) => {
           const base64 = e.target.result.split(',')[1];
-          const result = await callGAS('POST','files/upload',{
+          const payload = {
             filename: selectedFile.name,
-            mimeType: selectedFile.type,
+            mimeType: selectedFile.type || 'application/octet-stream',
             base64,
             uploaded_by: currentUser
-          });
+          };
 
-          // 실패 응답 처리
-          if(!result || result.ok === false || !result.url){
-            showToast('❌','업로드 실패: ' + (result && result.error ? result.error : '서버 응답 없음'));
-            console.error('upload failed', result);
-            return;
+          // 고유 식별자(폴링에서 찾기 위함)
+          const upid = 'UP-' + Date.now() + '-' + Math.random().toString(36).slice(2,8);
+          payload.related_request_id = upid;
+
+          let url = null;
+
+          if (selectedFile.size <= LARGE_THRESHOLD) {
+            // --- 작은 파일: JSONP로 바로 업로드 ---
+            const result = await callGAS('POST','files/upload', payload);
+            if(!result || result.ok === false || !result.url){
+              console.error('upload failed(JSONP)', result);
+              showToast('❌','업로드 실패: ' + (result && result.error ? result.error : '서버 응답 없음'));
+              return;
+            }
+            url = result.url;
+
+          } else {
+            // --- 큰 파일: 진짜 POST(no-cors) 보내고 → list를 폴링 ---
+            try{
+              await fetch(`${CONFIG.GAS_URL}?path=files/upload`, {
+                method: 'POST',
+                mode: 'no-cors',                // 응답은 못 읽지만 서버에는 전달됨
+                headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({...payload, token: CONFIG.TOKEN}) // _auth 통과
+              });
+            }catch(_){ /* no-cors라 에러 무시 */ }
+
+            // 업로드 반영될 때까지 files/list로 폴링(최대 10초)
+            const started = Date.now();
+            while(Date.now() - started < 10000){ // 10초
+              await new Promise(r=>setTimeout(r, 1200));
+              const data = await callGAS('GET','files/list');
+              const items = (data && data.items) ? data.items : [];
+              const hit = items.find(it => it.related === upid);
+              if (hit && hit.url) { url = hit.url; break; }
+            }
+            if(!url){
+              showToast('❌','업로드 확인 실패(시간초과)');
+              return;
+            }
           }
 
+          // 성공 처리
           showToast('✅','파일 업로드 완료!');
-          // 메시지 입력창에 링크 자동 삽입
           const ta = document.getElementById('urgentMessage');
-          const line = `\n📎 파일: ${result.url}`;
-          if(!ta.value.includes(result.url)) ta.value += line;
+          const line = `\n📎 파일: ${url}`;
+          if(!ta.value.includes(url)) ta.value += line;
 
           document.getElementById('fileList').innerHTML = '';
           selectedFile = null;
+          if (typeof loadSharedFiles === 'function') loadSharedFiles();
         };
         reader.readAsDataURL(selectedFile);
+
       }catch(err){
         console.error('upload error', err);
         showToast('❌','업로드 실패');
