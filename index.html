@@ -165,88 +165,27 @@
   <script>
     // ===== CONFIG =====
     const CONFIG = {
-      GAS_URL: 'https://script.google.com/a/macros/cafe24corp.com/s/AKfycbxKdSjsv-9Nn8rH-MG1A4KXmUsqoeAAOe8T9EjrnNKQgX9M1-DrswWZANq0AcgTmwiSPA/exec', // 실제 배포 URL
-      TOKEN: '7c1e4a9fdb2e4930b58c6e91d7a4b235',
-      AUTO_REFRESH: 30000,
-      MEETING_REFRESH: 60000
+      GAS_URL: (() => {
+        const u = new URL(window.location.href);  // .../exec?ui=1
+        return u.origin + u.pathname;             // .../exec
+      })(),
+      TOKEN: '7c1e4a9fdb2e4930b58c6e91d7a4b235'   // 사용 중인 TOKEN 그대로
     };
 
-    let currentRequestType = 'urgent';
-    let selectedFile = null;
-    let currentUser = localStorage.getItem('userRole') || 'secretary';
-    // 최근 업로드 파일(자동 포함용)
-    let lastUploaded = null;
-
-    document.addEventListener('DOMContentLoaded', function(){
-      document.getElementById('userRole').value = currentUser;
-      updateUserInterface();
-      updateDateTime();
-      syncMeetingsFromSlack();
-      loadMeetings();
-      loadChatHistory();
-      countOpenRequests();
-      loadRecentRequests();
-
-      setInterval(() => {
-        loadChatHistory();
-        countOpenRequests();
-        loadRecentRequests();
-        // 요청 상태의 슬랙 리액션 동기화 (👀/✅)
-        callGAS('GET','requests/refresh').catch(()=>{});
-      }, CONFIG.AUTO_REFRESH);
-
-      setInterval(() => {
-        syncMeetingsFromSlack();
-        loadMeetings();
-      }, CONFIG.MEETING_REFRESH);
-
-      setInterval(updateDateTime, 1000);
-    });
-
-   // ===== JSONP ONLY callGAS =====
-  function callGAS(method, path, data = {}) {
-    return new Promise((resolve, reject) => {
-      const cb = 'cb_' + Date.now() + '_' + Math.floor(Math.random() * 1e9);
-      let settled = false;
-
-      // 공통 정리 함수
-      function cleanup() {
-        try { delete window[cb]; } catch(_) {}
-        try { if (script && script.parentNode) script.parentNode.removeChild(script); } catch(_) {}
-      }
-
-      const timeout = setTimeout(() => {
-        if (settled) return;
-        settled = true;
-        cleanup();
-        reject(new Error('Request timeout'));
-      }, 30000);
-
-      window[cb] = (res) => {
-        if (settled) return;
-        settled = true;
-        clearTimeout(timeout);
-        cleanup();
-        resolve(res);
-      };
-
-      let url = `${CONFIG.GAS_URL}?path=${encodeURIComponent(path)}&token=${encodeURIComponent(CONFIG.TOKEN)}&callback=${cb}`;
-      if (method === 'POST') {
-        url += `&method=POST&body=${encodeURIComponent(JSON.stringify(data))}`;
-      }
-
-      const script = document.createElement('script');
-      script.src = url;
-      script.onerror = () => {
-        if (settled) return;
-        settled = true;
-        clearTimeout(timeout);
-        cleanup();
-        reject(new Error('Script load error'));
-      };
-      document.body.appendChild(script);
-    });
-  }
+    async function callGAS(method, path, data = {}){
+      const url = `${CONFIG.GAS_URL}?path=${encodeURIComponent(path)}`;
+      const res = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${CONFIG.TOKEN}`
+        },
+        body: method === 'POST' ? JSON.stringify(data) : undefined,
+        credentials: 'include'
+      });
+      if (!res.ok) throw new Error(`${method} ${path} failed: ${res.status}`);
+      return res.json();
+    }
     
     // ===== Utils =====
     function showToast(icon, msg){ const t=document.getElementById('toast'); document.getElementById('toastIcon').textContent=icon; document.getElementById('toastMessage').textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),3000); }
