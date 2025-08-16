@@ -252,13 +252,16 @@
       const textarea=document.getElementById('urgentMessage');
       let message=textarea.value.trim();
 
-      // 최근 업로드 파일 자동 포함(5분 이내 & 메시지에 동일 링크가 없을 때)
+      // 최근 업로드 파일 자동 포함(5분 이내 & 메시지에 동일 링크 없을 때)
       if(lastUploaded && (Date.now()-lastUploaded.at) < 5*60*1000 && !message.includes(lastUploaded.url)){
-        message += `
-📎 파일: ${lastUploaded.url}`;
+        message += `\n📎 파일: ${lastUploaded.url}`;
       }
 
-      if(!message){ showToast('⚠️','메시지를 입력해주세요'); return; }
+      if(!message){
+        showToast('⚠️','메시지를 입력해주세요');
+        return;
+      }
+
       try{
         showToast('⏳','전송 중...');
         await callGAS('POST','requests/create',{
@@ -269,6 +272,7 @@
         });
         textarea.value='';
         lastUploaded=null; // 전송 후 초기화
+
         const recipient=currentUser==='ceo'?'비서':'대표님';
         showToast('✅',`${recipient}에게 슬랙대시보드봇으로 전송 완료!`);
         countOpenRequests();
@@ -277,40 +281,50 @@
       }catch(err){
         showToast('❌','전송 실패: '+err.message);
       }
-    } try{ showToast('⏳','전송 중...'); await callGAS('POST','requests/create',{type:currentRequestType, from:currentUser, message, priority: currentRequestType==='urgent'?'high':'normal'}); document.getElementById('urgentMessage').value=''; const recipient=currentUser==='ceo'?'비서':'대표님'; showToast('✅',`${recipient}에게 슬랙대시보드봇으로 전송 완료!`); countOpenRequests(); loadRecentRequests(); setTimeout(loadChatHistory,1000); }catch(err){ showToast('❌','전송 실패: '+err.message); } }
-
-    // ===== Files (Drive upload) =====
+    }
+    
+    <!-- ===== Files (Drive upload) ===== -->
     function uploadFile(){ document.getElementById('fileInput').click(); }
-    function handleFileSelect(ev){ const file=ev.target.files[0]; if(!file) return; selectedFile=file; const list=document.getElementById('fileList'); list.innerHTML=`<div class="file-item"><span>📄</span><span>${file.name}</span><button onclick="uploadSelectedFile()" class="btn" style="padding:5px 10px;font-size:12px;">업로드</button></div>`; }
+    function handleFileSelect(ev){
+      const file = ev.target.files[0];
+      if(!file) return;
+      selectedFile = file;
+      const list = document.getElementById('fileList');
+      list.innerHTML = `<div class="file-item"><span>📄</span><span>${file.name}</span>
+        <button onclick="uploadSelectedFile()" class="btn" style="padding:5px 10px;font-size:12px;">업로드</button>
+      </div>`;
+    }
     async function uploadSelectedFile(){
       if(!selectedFile) return;
       try{
         showToast('⏳','파일 업로드 중...');
-        const reader=new FileReader();
-        reader.onload=async function(e){
-          const base64=e.target.result.split(',')[1];
-          const result=await callGAS('POST','files/upload',{
-            filename:selectedFile.name,
-            mimeType:selectedFile.type,
+        const reader = new FileReader();
+        reader.onload = async function(e){
+          const base64 = e.target.result.split(',')[1];
+          const result = await callGAS('POST','files/upload',{
+            filename: selectedFile.name,
+            mimeType: selectedFile.type,
             base64,
             uploaded_by: currentUser
           });
+
           // 최근 업로드 기록(5분 자동 포함)
           lastUploaded = { url: result.url, name: selectedFile.name, at: Date.now() };
+
           showToast('✅','파일 업로드 완료!');
-          const message=document.getElementById('urgentMessage');
-          const line=`
-📎 파일: ${result.url}`;
+          const message = document.getElementById('urgentMessage');
+          const line = `\n📎 파일: ${result.url}`;
           if(!message.value.includes(result.url)) message.value += line;
-          document.getElementById('fileList').innerHTML='';
-          selectedFile=null;
+
+          document.getElementById('fileList').innerHTML = '';
+          selectedFile = null;
         };
         reader.readAsDataURL(selectedFile);
       }catch(err){
         console.error('upload error', err);
         showToast('❌','업로드 실패');
       }
-    }); showToast('✅','파일 업로드 완료!'); const message=document.getElementById('urgentMessage'); message.value += `\n📎 파일: ${result.url}`; document.getElementById('fileList').innerHTML=''; selectedFile=null; }; reader.readAsDataURL(selectedFile); }catch(err){ showToast('❌','업로드 실패'); } }
-  </script>
-</body>
-</html>
+    }
+    </script>
+    </body>
+    </html>
