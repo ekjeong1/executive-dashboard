@@ -172,15 +172,13 @@
       TOKEN: '7c1e4a9fdb2e4930b58c6e91d7a4b235'   // 사용 중인 TOKEN 그대로
     };
 
+    // 헤더 Authorization 제거하고, token을 URL/바디로 전달
     async function callGAS(method, path, data = {}){
-      const url = `${CONFIG.GAS_URL}?path=${encodeURIComponent(path)}`;
+      const url = `${CONFIG.GAS_URL}?path=${encodeURIComponent(path)}&token=${encodeURIComponent(CONFIG.TOKEN)}`;
       const res = await fetch(url, {
         method,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${CONFIG.TOKEN}`
-        },
-        body: method === 'POST' ? JSON.stringify(data) : undefined,
+        headers: { 'Content-Type': 'application/json' },
+        body: method === 'POST' ? JSON.stringify({ ...data, token: CONFIG.TOKEN }) : undefined,
         credentials: 'include'
       });
       if (!res.ok) throw new Error(`${method} ${path} failed: ${res.status}`);
